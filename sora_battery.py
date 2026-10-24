@@ -5,9 +5,11 @@ Protocol (taken from the NinjaForce web driver, www.ninjaforce.co):
   device     VID 0x1915, PID 0xAE1C (2.4GHz dongle) or 0xAE12 (mouse on cable),
              vendor collection usage page 0xFFA0
   request    feature report 0x05, 31 bytes: [0]=0x15 (21), [3]=0x01, [6]=0x04
-  response   get feature report 0x05 -> byte 9 = battery %, byte 10 = 1 if charging
-             (byte 9 == 0 means "no data yet" / mouse asleep -> retry once)
+  response   get feature report 0x05 -> byte 9 = battery %, byte 10 = 1 if charging,
+             byte 11 = 1 if fully charged, byte 12 = 1 if the mouse is connected to the dongle
+             (byte 9 == 0 means "no data yet" / mouse asleep -> retry)
              While charging, byte 9 stays at the level from before the cable was plugged in.
+             Byte 12 is only meaningful through the dongle; on the cable it reads 0.
 
 Run:  pythonw sora_battery.py
 """
@@ -15,6 +17,7 @@ import sys
 import threading
 import time
 import winreg
+from typing import NamedTuple
 
 import hid
 import pystray
@@ -32,27 +35,43 @@ APP_NAME = "SoraBattery"
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 
-def find_paths():
+class Reading(NamedTuple):
+    percent: int
+    charging: bool
+    full: bool
+    online: bool  # False: the dongle answered but the mouse is off or asleep
+
+
+def find_devices():
     """Vendor interfaces of any Sora: wired cable first, then the 2.4GHz dongle."""
     found = [d for d in hid.enumerate(VID, 0)
              if d["usage_page"] == VENDOR_USAGE_PAGE and "Sora" in (d["product_string"] or "")]
     found.sort(key=lambda d: d["product_id"] == PID)  # dongle (PID) last
-    return [d["path"] for d in found]
+    return found
 
 
-def query(path):
+def query(info):
     dev = hid.device()
     try:
-        dev.open_path(path)
+        dev.open_path(info["path"])
         cmd = bytearray(31)
         cmd[0], cmd[3], cmd[6] = 21, 1, 4
+        resp = None
         for _ in range(3):
             dev.send_feature_report(bytes([REPORT_ID]) + bytes(cmd))
             time.sleep(0.03)
             resp = dev.get_feature_report(REPORT_ID, 32)
-            if len(resp) > 10 and resp[1] == 21 and resp[9]:
-                return resp[9], resp[10] == 1
-        return None
+            if len(resp) > 12 and resp[1] == 21 and resp[9]:
+                break
+        if not resp or len(resp) <= 12 or resp[1] != 21:
+            return None
+        wired = info["product_id"] != PID
+        online = wired or resp[12] == 1
+        if not resp[9]:
+            if wired:
+                return None
+            online = False  # dongle has no data from the mouse
+        return Reading(resp[9], resp[10] == 1, resp[11] == 1, online)
     except OSError:
         return None
     finally:
@@ -60,12 +79,14 @@ def query(path):
 
 
 def read_battery():
-    """Return (percent, charging) or None if the mouse isn't reachable."""
-    for path in find_paths():
-        result = query(path)
-        if result:
+    """Return a Reading, or None if neither the mouse nor the dongle answers."""
+    offline = None
+    for info in find_devices():
+        result = query(info)
+        if result and result.online:
             return result
-    return None
+        offline = offline or result
+    return offline
 
 
 def _font(size):
@@ -77,13 +98,15 @@ def _font(size):
     return ImageFont.load_default()
 
 
-def make_icon(percent, charging):
+def make_icon(percent, charging, full=False):
     img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     if percent is None:
         color, text = (128, 128, 128), "?"
     else:
-        if charging:
+        if charging and full:
+            color = (40, 200, 80)
+        elif charging:
             color = (60, 150, 255)
         elif percent <= CRITICAL_PERCENT:
             color = (230, 40, 40)
@@ -128,6 +151,8 @@ class TrayApp:
     def __init__(self):
         self.percent = None
         self.charging = False
+        self.full = False
+        self.found = False  # dongle or cable seen, even if the mouse is off
         self.warned_at = None  # lowest threshold already warned about
         self.wake = threading.Event()
         self.stop = threading.Event()
@@ -146,7 +171,9 @@ class TrayApp:
 
     def status_text(self):
         if self.percent is None:
-            return "Mouse not found / asleep"
+            return "Mouse off or asleep" if self.found else "Mouse / receiver not found"
+        if self.charging and self.full:
+            return "Fully charged"
         if self.charging:
             return f"Charging (was {self.percent}%, updates when unplugged)"
         return f"Battery {self.percent}%"
@@ -173,8 +200,12 @@ class TrayApp:
     def poll_loop(self):
         while not self.stop.is_set():
             result = read_battery()
-            self.percent, self.charging = result if result else (None, False)
-            self.icon.icon = make_icon(self.percent, self.charging)
+            self.found = result is not None
+            if result and result.online:
+                self.percent, self.charging, self.full = result.percent, result.charging, result.full
+            else:
+                self.percent, self.charging, self.full = None, False, False
+            self.icon.icon = make_icon(self.percent, self.charging, self.full)
             self.icon.title = "Sora V2: " + self.status_text()
             self.icon.update_menu()
             self.check_warning()

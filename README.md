@@ -12,7 +12,8 @@ The official configurator ([NinjaForce](https://www.ninjaforce.co)) only runs in
 | Orange | 20% or less |
 | Red | 10% or less |
 | Blue ⚡ | Charging (cable plugged in) |
-| Grey `?` | Mouse not found or asleep |
+| Green ⚡ | Fully charged, still on the cable |
+| Grey `?` | Mouse off or asleep, or receiver not found (the tooltip says which) |
 
 ## Features
 
@@ -46,7 +47,7 @@ Print the current reading once and exit:
 python sora_battery.py --once
 ```
 
-Output is `(percent, charging)`, for example `(88, False)`, or `None` if the mouse wasn't found.
+Output looks like `Reading(percent=88, charging=False, full=False, online=True)`, or `None` if neither the mouse nor the receiver was found.
 
 **Tray menu:** the current status, **Refresh now** (also triggered by left-clicking the icon), **Start with Windows**, **Quit**.
 
@@ -90,8 +91,10 @@ Then read feature report `0x05`. With the report ID at offset 0:
 | 1 | Command echo (`0x15`) |
 | 9 | Battery percent (0 means no data yet, so retry) |
 | 10 | `1` if charging |
+| 11 | `1` if fully charged |
+| 12 | `1` if the mouse is connected to the dongle (always `0` on the cable) |
 
-Example reply: `05 15 00 00 01 00 00 04 00 58 00 …` → 88%, not charging.
+Example reply: `05 15 00 00 01 00 00 04 00 58 00 00 01 …` → 88%, not charging, mouse connected.
 
 While the mouse is charging, the percent at offset 9 stays at the level from before you plugged it in, and only updates after you unplug. That's why the app shows a lightning bolt instead of a number while charging. NinjaForce does the same.
 
