@@ -7,6 +7,7 @@ Protocol (taken from the NinjaForce web driver, www.ninjaforce.co):
   request    feature report 0x05, 31 bytes: [0]=0x15 (21), [3]=0x01, [6]=0x04
   response   get feature report 0x05 -> byte 9 = battery %, byte 10 = 1 if charging
              (byte 9 == 0 means "no data yet" / mouse asleep -> retry once)
+             While charging, byte 9 stays at the level from before the cable was plugged in.
 
 Run:  pythonw sora_battery.py
 """
@@ -92,6 +93,10 @@ def make_icon(percent, charging):
             color = (40, 200, 80)
         text = "F" if percent >= 100 else str(percent)
     draw.rounded_rectangle((0, 0, 63, 63), radius=12, fill=color)
+    if charging and percent is not None:
+        # The mouse keeps reporting the pre-charge level while on the cable, so draw a bolt.
+        draw.polygon([(36, 6), (14, 36), (30, 36), (26, 58), (50, 26), (34, 26)], fill="white")
+        return img
     font = _font(40 if len(text) <= 2 else 30)
     draw.text((32, 33), text, font=font, fill="white", anchor="mm")
     return img
@@ -142,7 +147,9 @@ class TrayApp:
     def status_text(self):
         if self.percent is None:
             return "Mouse not found / asleep"
-        return f"Battery {self.percent}%" + (" (charging)" if self.charging else "")
+        if self.charging:
+            return f"Charging (was {self.percent}%, updates when unplugged)"
+        return f"Battery {self.percent}%"
 
     def toggle_autostart(self, icon, item):
         set_autostart(not autostart_enabled())

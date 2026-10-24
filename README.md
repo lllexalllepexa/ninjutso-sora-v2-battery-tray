@@ -11,7 +11,7 @@ The official configurator ([NinjaForce](https://www.ninjaforce.co)) only runs in
 | Green | Battery above 20% |
 | Orange | 20% or less |
 | Red | 10% or less |
-| Blue | Charging (cable plugged in) |
+| Blue ⚡ | Charging (cable plugged in) |
 | Grey `?` | Mouse not found or asleep |
 
 ## Features
@@ -93,11 +93,14 @@ Then read feature report `0x05`. With the report ID at offset 0:
 
 Example reply: `05 15 00 00 01 00 00 04 00 58 00 …` → 88%, not charging.
 
+While the mouse is charging, the percent at offset 9 stays at the level from before you plugged it in, and only updates after you unplug. That's why the app shows a lightning bolt instead of a number while charging. NinjaForce does the same.
+
 The app matches any device with VID `0x1915`, usage page `0xFFA0` and "Sora" in the product name, and tries the wired connection first. Other Sora variants (for example the 8K version) will probably work but haven't been tested.
 
 ## Troubleshooting
 
 - **Grey `?` icon:** the mouse is switched off or asleep. Move it to wake it up, then choose **Refresh now**.
+- **No percentage while charging:** the mouse doesn't report a live level on the cable. Unplug it to see the new reading.
 - **Doesn't work while NinjaForce is open:** close the browser tab. Two programs querying the mouse at the same moment can interfere with each other.
 - **"Start with Windows" opens the wrong file:** the startup entry stores the script's path. If you move the folder, turn the option off and on again.
 
