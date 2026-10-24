@@ -1,8 +1,10 @@
-# Sora Battery
+# Ninjutso Sora V2 Battery Indicator
 
-A tiny Windows system-tray battery indicator for the **Ninjutso Sora V2** wireless mouse.
+A tiny Windows system-tray app that shows the battery level of the **Ninjutso Sora V2** wireless gaming mouse and warns you when the battery is low.
 
-The official configurator ([NinjaForce](https://www.ninjaforce.co)) only runs in the browser, so there's no way to see the battery level at a glance. This app sits in the tray, shows the percentage as a number, and warns you before the mouse dies.
+The official configurator ([NinjaForce](https://www.ninjaforce.co)) only runs in the browser, so there's no way to see the mouse battery percentage at a glance. This app sits in the taskbar tray, shows the percentage as a number, and sends a notification before the mouse dies. No NinjaForce tab or official driver needed.
+
+Works with the 2.4 GHz wireless receiver (dongle) and with the USB cable.
 
 ![Tray icon states](docs/icons.png)
 
@@ -19,7 +21,6 @@ The official configurator ([NinjaForce](https://www.ninjaforce.co)) only runs in
 
 - Battery percentage right in the tray icon, with a tooltip
 - Windows notifications at 20% and 10% (they re-arm once you charge)
-- Works over the 2.4 GHz dongle and over the USB cable
 - Optional **Start with Windows** toggle in the menu (adds an entry to your user's `Run` registry key)
 - No driver, no background service, no network access; it's one Python file
 
