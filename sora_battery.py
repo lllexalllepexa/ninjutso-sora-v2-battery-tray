@@ -13,6 +13,8 @@ Protocol (taken from the NinjaForce web driver, www.ninjaforce.co):
 
 Run:  pythonw sora_battery.py
 """
+import ctypes
+import ctypes.wintypes
 import sys
 import threading
 import time
@@ -76,6 +78,16 @@ def query(info):
         return None
     finally:
         dev.close()
+
+
+def cursor_pos():
+    pt = ctypes.wintypes.POINT()
+    ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
+    return pt.x, pt.y
+
+
+def wired_connected():
+    return any(d["product_id"] != PID for d in find_devices())
 
 
 def read_battery():
@@ -198,19 +210,29 @@ class TrayApp:
                 break
 
     def poll_loop(self):
+        # Every query reaches the mouse over 2.4GHz and resets its sleep timer, so only
+        # ask while the cursor is moving (the mouse is awake anyway) or on the cable.
+        last_pos = None
+        forced = True
         while not self.stop.is_set():
-            result = read_battery()
-            self.found = result is not None
-            if result and result.online:
-                self.percent, self.charging, self.full = result.percent, result.charging, result.full
-            else:
-                self.percent, self.charging, self.full = None, False, False
-            self.icon.icon = make_icon(self.percent, self.charging, self.full)
-            self.icon.title = "Sora V2: " + self.status_text()
-            self.icon.update_menu()
-            self.check_warning()
-            self.wake.wait(POLL_SECONDS)
+            pos = cursor_pos()
+            if forced or pos != last_pos or wired_connected():
+                self.refresh()
+            last_pos = pos
+            forced = self.wake.wait(POLL_SECONDS)
             self.wake.clear()
+
+    def refresh(self):
+        result = read_battery()
+        self.found = result is not None
+        if result and result.online:
+            self.percent, self.charging, self.full = result.percent, result.charging, result.full
+        else:
+            self.percent, self.charging, self.full = None, False, False
+        self.icon.icon = make_icon(self.percent, self.charging, self.full)
+        self.icon.title = "Sora V2: " + self.status_text()
+        self.icon.update_menu()
+        self.check_warning()
 
     def run(self):
         def setup(icon):

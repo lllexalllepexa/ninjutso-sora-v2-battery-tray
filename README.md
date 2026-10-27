@@ -52,7 +52,7 @@ Output looks like `Reading(percent=88, charging=False, full=False, online=True)`
 
 **Tray menu:** the current status, **Refresh now** (also triggered by left-clicking the icon), **Start with Windows**, **Quit**.
 
-The battery is checked every 2 minutes. To change the interval or the warning levels, edit `POLL_SECONDS`, `LOW_PERCENT` and `CRITICAL_PERCENT` at the top of `sora_battery.py`.
+The battery is checked every 2 minutes, but only while you're moving the mouse. Each query reaches the mouse over 2.4 GHz and resets its sleep timer, so the app leaves an idle mouse alone and it can go to sleep normally. On the USB cable it checks every 2 minutes regardless. To change the interval or the warning levels, edit `POLL_SECONDS`, `LOW_PERCENT` and `CRITICAL_PERCENT` at the top of `sora_battery.py`.
 
 ### Build a standalone .exe
 
