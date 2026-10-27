@@ -29,8 +29,8 @@ Works with the 2.4 GHz wireless receiver (dongle) and with the USB cable.
 Requires Windows and Python 3.9+.
 
 ```bash
-git clone https://github.com/lllexalllepexa/sora_battery.git
-cd sora_battery
+git clone https://github.com/lllexalllepexa/ninjutso-sora-v2-battery-tray.git
+cd ninjutso-sora-v2-battery-tray
 pip install -r requirements.txt
 ```
 
