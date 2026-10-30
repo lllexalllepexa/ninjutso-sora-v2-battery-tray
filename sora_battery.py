@@ -86,6 +86,28 @@ def cursor_pos():
     return pt.x, pt.y
 
 
+def ninjaforce_open():
+    """True if a visible window title mentions NinjaForce (the browser's active tab).
+
+    The dongle has a single reply buffer, so our query could clobber the site's reads.
+    """
+    user32 = ctypes.windll.user32
+    found = False
+
+    @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.wintypes.HWND, ctypes.wintypes.LPARAM)
+    def check(hwnd, _):
+        nonlocal found
+        if user32.IsWindowVisible(hwnd):
+            # InternalGetWindowText never sends WM_GETTEXT, so a hung window can't block us.
+            buf = ctypes.create_unicode_buffer(512)
+            if user32.InternalGetWindowText(hwnd, buf, 512):
+                found = "ninjaforce" in buf.value.lower()
+        return not found
+
+    user32.EnumWindows(check, 0)
+    return found
+
+
 def wired_connected():
     return any(d["product_id"] != PID for d in find_devices())
 
@@ -165,6 +187,7 @@ class TrayApp:
         self.charging = False
         self.full = False
         self.found = False  # dongle or cable seen, even if the mouse is off
+        self.paused = False  # NinjaForce is open
         self.warned_at = None  # lowest threshold already warned about
         self.wake = threading.Event()
         self.stop = threading.Event()
@@ -182,6 +205,8 @@ class TrayApp:
         )
 
     def status_text(self):
+        if self.paused:
+            return "Paused while NinjaForce is open"
         if self.percent is None:
             return "Mouse off or asleep" if self.found else "Mouse / receiver not found"
         if self.charging and self.full:
@@ -216,7 +241,12 @@ class TrayApp:
         forced = True
         while not self.stop.is_set():
             pos = cursor_pos()
-            if forced or pos != last_pos or wired_connected():
+            paused = ninjaforce_open()  # stay off the dongle while the web driver uses it
+            if paused != self.paused:
+                self.paused = paused
+                self.icon.title = "Sora V2: " + self.status_text()
+                self.icon.update_menu()
+            if not paused and (forced or pos != last_pos or wired_connected()):
                 self.refresh()
             last_pos = pos
             forced = self.wake.wait(POLL_SECONDS)

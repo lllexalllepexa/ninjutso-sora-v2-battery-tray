@@ -105,7 +105,8 @@ The app matches any device with VID `0x1915`, usage page `0xFFA0` and "Sora" in 
 
 - **Grey `?` icon:** the mouse is switched off or asleep. Move it to wake it up, then choose **Refresh now**.
 - **No percentage while charging:** the mouse doesn't report a live level on the cable. Unplug it to see the new reading.
-- **Doesn't work while NinjaForce is open:** close the browser tab. Two programs querying the mouse at the same moment can interfere with each other.
+- **NinjaForce:** the receiver has a single reply buffer, so two programs querying the mouse at the same moment can mix up each other's replies. The app pauses itself while a window titled "NinjaForce" is open (the tooltip says so). Browsers only show the active tab in the window title, so if NinjaForce is in a background tab, quit the app first.
+- **NinjaForce loads for a second, then sends you back to the start page:** unplug the receiver, plug it back in, and switch the mouse off and on. A stuck receiver can return a short reply to the settings request, and NinjaForce silently gives up when the checksum doesn't match.
 - **"Start with Windows" opens the wrong file:** the startup entry stores the script's path. If you move the folder, turn the option off and on again.
 
 ## Disclaimer
